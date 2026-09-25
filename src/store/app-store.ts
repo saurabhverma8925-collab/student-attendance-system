@@ -13,7 +13,6 @@ export interface SessionUser {
   branch?: string
   section?: string
   semester?: number
-  fingerprintEnrolled?: boolean
   deviceFingerprint?: string | null
   hasSeenOnboarding?: boolean
 }
@@ -31,7 +30,7 @@ interface AppState {
     | 'subjects'
   setAdminView: (v: AppState['adminView']) => void
 
-  studentView: 'home' | 'subjects' | 'device' | 'biometric'
+  studentView: 'home' | 'subjects' | 'device'
   setStudentView: (v: AppState['studentView']) => void
 
   // Set to true when student just logged in and hasn't seen onboarding screen yet

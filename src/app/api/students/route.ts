@@ -41,7 +41,6 @@ export async function GET(req: NextRequest) {
       email: true,
       phone: true,
       passwordPlain: true,
-      fingerprintEnrolled: true,
       deviceFingerprint: true,
       deviceRegisteredAt: true,
       hasSeenOnboarding: true,
@@ -60,7 +59,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const body = await req.json()
-  const { studentId, name, branch, section, semester, email, phone, password, enrollFingerprint, registerDevice } = body as any
+  const { studentId, name, branch, section, semester, email, phone, password, registerDevice } = body as any
   if (!studentId || !name || !branch || !section || !semester) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -85,17 +84,6 @@ export async function POST(req: NextRequest) {
       passwordPlain: password,
     },
   })
-
-  // Optionally enroll fingerprint on the student's behalf
-  if (enrollFingerprint) {
-    const crypto = await import('crypto')
-    const raw = crypto.randomBytes(32).toString('hex')
-    const templateHash = crypto.createHash('sha256').update(raw + ':' + student.id).digest('hex')
-    await db.student.update({
-      where: { id: student.id },
-      data: { fingerprintEnrolled: true, fingerprintTemplateHash: templateHash },
-    })
-  }
 
   // Optionally register a device on the student's behalf
   if (registerDevice) {

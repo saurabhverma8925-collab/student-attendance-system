@@ -9,7 +9,6 @@ import {
   Loader2,
   Info,
   ShieldCheck,
-  Fingerprint,
 } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import {
@@ -26,7 +25,6 @@ interface DeviceInfo {
   device: {
     deviceFingerprint: string | null
     deviceRegisteredAt: string | null
-    fingerprintEnrolled: boolean
   } | null
 }
 
@@ -118,7 +116,7 @@ export function StudentDevice() {
                   <div className="font-medium">No device registered yet</div>
                   <p className="text-xs text-muted-foreground">
                     Please visit the administrative office to register your device.
-                    Until your device is registered, biometric attendance marking will be unavailable.
+                    Until your device is registered, attendance marking will be unavailable.
                   </p>
                 </div>
               )}
@@ -136,7 +134,7 @@ export function StudentDevice() {
             </div>
             <ul className="text-xs text-muted-foreground space-y-1.5 ml-6 list-disc">
               <li>Prevents proxy attendance on behalf of absentees.</li>
-              <li>Combined with biometric scan, ensures only the registered student marks their own attendance.</li>
+              <li>Ensures only the registered student can mark their own attendance.</li>
               <li>Device-bound credentials make stolen-password attacks ineffective.</li>
             </ul>
           </CardContent>
@@ -145,7 +143,7 @@ export function StudentDevice() {
         <Card className="border-amber-200 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/10">
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
-              <Fingerprint className="w-4 h-4 text-amber-600" />
+              <Smartphone className="w-4 h-4 text-amber-600" />
               Lost or changed your device?
             </div>
             <p className="text-xs text-muted-foreground">

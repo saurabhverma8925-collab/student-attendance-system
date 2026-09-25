@@ -9,7 +9,6 @@ import {
   Trash2,
   Users,
   Loader2,
-  Fingerprint,
   Smartphone,
   Filter,
   ShieldCheck,
@@ -56,7 +55,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
-import { BiometricDeviceDialog } from './biometric-device-dialog'
+import { DeviceManageDialog } from './device-manage-dialog'
 
 interface StudentRow {
   id: string
@@ -68,7 +67,6 @@ interface StudentRow {
   email: string | null
   phone: string | null
   passwordPlain: string | null
-  fingerprintEnrolled: boolean
   deviceFingerprint: string | null
   deviceRegisteredAt: string | null
   hasSeenOnboarding: boolean
@@ -118,7 +116,7 @@ export function StudentsView() {
             Student Management
           </h1>
           <p className="text-sm text-muted-foreground">
-            Add, edit, search, and remove students. Manage biometric &amp; device enrollment.
+            Add, edit, search, and remove students. Manage device enrollment.
           </p>
         </div>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
@@ -189,7 +187,6 @@ export function StudentsView() {
                     <TableHead>Sec</TableHead>
                     <TableHead>Sem</TableHead>
                     <TableHead>Password</TableHead>
-                    <TableHead className="text-center">Biometric</TableHead>
                     <TableHead className="text-center">Device</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -215,14 +212,11 @@ export function StudentsView() {
                         <PasswordCell password={s.passwordPlain || ''} />
                       </TableCell>
                       <TableCell className="text-center">
-                        <Fingerprint className={`w-4 h-4 mx-auto ${s.fingerprintEnrolled ? 'text-emerald-600' : 'text-muted-foreground/40'}`} />
-                      </TableCell>
-                      <TableCell className="text-center">
                         <Smartphone className={`w-4 h-4 mx-auto ${s.deviceFingerprint ? 'text-emerald-600' : 'text-muted-foreground/40'}`} />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => setManageOpen(s)} className="text-primary hover:text-primary" aria-label="Manage biometric & device" title="Manage biometric & device">
+                          <Button variant="ghost" size="icon" onClick={() => setManageOpen(s)} className="text-primary hover:text-primary" aria-label="Manage device" title="Manage device">
                             <ShieldCheck className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => setEditing(s)} aria-label="Edit">
@@ -286,7 +280,7 @@ export function StudentsView() {
         </DialogContent>
       </Dialog>
 
-      <BiometricDeviceDialog
+      <DeviceManageDialog
         student={manageOpen}
         open={!!manageOpen}
         onOpenChange={(o) => !o && setManageOpen(null)}
@@ -314,7 +308,6 @@ function StudentForm({
     password: initial?.passwordPlain ?? '',
   })
   const [showPwd, setShowPwd] = useState(false)
-  const [enrollFingerprint, setEnrollFingerprint] = useState(initial?.fingerprintEnrolled ?? false)
   const [registerDevice, setRegisterDevice] = useState(!!initial?.deviceFingerprint)
   const [busy, setBusy] = useState(false)
 
@@ -346,17 +339,15 @@ function StudentForm({
         })
         toast.success('Student updated')
       } else {
-        // Add mode — pass everything including enrollment flags
+        // Add mode — pass everything including device registration flag
         await api('/api/students', {
           method: 'POST',
           body: JSON.stringify({
             ...form,
-            enrollFingerprint,
             registerDevice,
           }),
         })
         const parts = [`Student added with password: ${form.password}`]
-        if (enrollFingerprint) parts.push('fingerprint enrolled')
         if (registerDevice) parts.push('device registered')
         toast.success(parts.join(' • '))
       }
@@ -374,8 +365,8 @@ function StudentForm({
         <DialogTitle>{initial ? 'Edit Student' : 'Add Student'}</DialogTitle>
         <DialogDescription>
           {initial
-            ? 'Update student details or password. Biometric/device use the Manage button.'
-            : 'Set the student\'s password and optionally enroll fingerprint + register device now.'}
+            ? 'Update student details or password. Device management uses the Manage button.'
+            : 'Set the student\'s password and optionally register a device now.'}
         </DialogDescription>
       </DialogHeader>
 
@@ -481,21 +472,6 @@ function StudentForm({
           <Label className="text-xs uppercase tracking-wide text-muted-foreground">Onboarding options</Label>
           <label className="flex items-start gap-3 p-2.5 rounded-md border border-border hover:bg-accent/30 cursor-pointer">
             <Switch
-              checked={enrollFingerprint}
-              onCheckedChange={setEnrollFingerprint}
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-1.5 text-sm font-medium">
-                <Fingerprint className="w-3.5 h-3.5 text-primary" />
-                Enroll fingerprint now
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Generates a fingerprint template hash for this student. They can use biometric login after first password login.
-              </div>
-            </div>
-          </label>
-          <label className="flex items-start gap-3 p-2.5 rounded-md border border-border hover:bg-accent/30 cursor-pointer">
-            <Switch
               checked={registerDevice}
               onCheckedChange={setRegisterDevice}
             />
@@ -515,8 +491,8 @@ function StudentForm({
       {initial && (
         <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-md p-3">
           <ShieldCheck className="w-4 h-4 inline mr-1 text-primary" />
-          To enroll/reset fingerprint or register/unbind device, use the{' '}
-          <strong>Manage Biometric &amp; Device</strong> button (shield icon) next to this student in the table.
+          To register or unbind a device, use the{' '}
+          <strong>Manage Device</strong> button (shield icon) next to this student in the table.
         </div>
       )}
 

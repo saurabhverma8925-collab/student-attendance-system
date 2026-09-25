@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard,
-  Fingerprint,
   Smartphone,
   LogOut,
   GraduationCap,
@@ -19,7 +18,6 @@ import { api } from '@/lib/client/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { StudentDashboard } from './student/dashboard'
-import { StudentBiometric } from './student/biometric'
 import { StudentDevice } from './student/device'
 import { StudentOnboarding } from './student/onboarding'
 
@@ -46,13 +44,11 @@ export function StudentApp() {
     return <StudentOnboarding />
   }
 
-  // Show onboarding prompts for fingerprint/device if not yet done
-  const needsOnboarding =
-    !user?.fingerprintEnrolled || !user?.deviceFingerprint
+  // Show onboarding prompts for device if not yet done
+  const needsOnboarding = !user?.deviceFingerprint
 
   const NAV = [
     { id: 'home', label: 'My Attendance', icon: LayoutDashboard },
-    { id: 'biometric', label: 'Biometric Status', icon: Fingerprint },
     { id: 'device', label: 'Device Status', icon: Smartphone },
   ] as const
 
@@ -96,17 +92,11 @@ export function StudentApp() {
           <span className="text-xs text-amber-800 dark:text-amber-200">
             ⚠️ Onboarding incomplete: please{' '}
             <strong>visit the administrative office</strong>
-            {!user?.fingerprintEnrolled && !user?.deviceFingerprint && ' to '}
-            {!user?.fingerprintEnrolled && (
-              <strong>enroll your fingerprint</strong>
-            )}
-            {!user?.fingerprintEnrolled && !user?.deviceFingerprint && ' and '}
+            {!user?.deviceFingerprint ? ' to ' : ''}
             {!user?.deviceFingerprint && (
               <strong>register your device</strong>
             )}
-            {!user?.fingerprintEnrolled && user?.deviceFingerprint ? ' — fingerprint enrollment is pending.' : ''}
-            {user?.fingerprintEnrolled && !user?.deviceFingerprint ? ' — device registration is pending.' : ''}
-            {!user?.fingerprintEnrolled && !user?.deviceFingerprint ? ' — these steps require admin action.' : ''}
+            {!user?.deviceFingerprint ? ' — device registration is pending.' : ''}
           </span>
         </div>
       )}
@@ -174,7 +164,6 @@ export function StudentApp() {
             transition={{ duration: 0.25 }}
           >
             {studentView === 'home' && <StudentDashboard />}
-            {studentView === 'biometric' && <StudentBiometric />}
             {studentView === 'device' && <StudentDevice />}
           </motion.div>
         </main>

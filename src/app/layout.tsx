@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Attendly — Student Attendance System",
-  description: "Biometric-powered student attendance system with low-attendance alerts, device binding, and detailed reports.",
-  keywords: ["attendance system", "student", "biometric", "education", "fingerprint"],
+  description: "Student attendance system with device binding, low-attendance alerts, and detailed reports.",
+  keywords: ["attendance system", "student", "education", "device binding"],
 };
 
 export default function RootLayout({

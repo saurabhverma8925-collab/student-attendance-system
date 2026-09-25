@@ -24,7 +24,6 @@ export async function GET(
       email: true,
       phone: true,
       passwordPlain: true,
-      fingerprintEnrolled: true,
       deviceFingerprint: true,
       deviceRegisteredAt: true,
       hasSeenOnboarding: true,

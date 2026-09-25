@@ -32,10 +32,7 @@ model Student {
   // Browser fingerprint hash to enforce one-device-per-student
   deviceFingerprint      String?
   deviceRegisteredAt     DateTime?
-  // Whether student has completed biometric enrollment
-  fingerprintEnrolled    Boolean  @default(false)
-  fingerprintTemplateHash String? // hash only, never store raw biometric
-  // Whether the student has seen the one-time onboarding screen (biometric + device status)
+  // Whether the student has seen the one-time onboarding screen (device status)
   hasSeenOnboarding      Boolean  @default(false)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt

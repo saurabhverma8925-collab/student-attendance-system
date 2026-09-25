@@ -14,7 +14,6 @@ export async function GET(req: NextRequest) {
     select: {
       deviceFingerprint: true,
       deviceRegisteredAt: true,
-      fingerprintEnrolled: true,
     },
   })
   return NextResponse.json({ device: student })

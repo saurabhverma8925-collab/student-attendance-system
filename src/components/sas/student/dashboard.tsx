@@ -207,7 +207,7 @@ export function StudentDashboard() {
         <CardContent className="p-4 flex items-center gap-3">
           <ShieldCheck className="w-8 h-8 text-emerald-600 shrink-0" />
           <div className="text-xs text-emerald-800 dark:text-emerald-200">
-            <strong>Privacy note:</strong> Your fingerprint template is stored as a one-way hash — raw biometric data never leaves your device. The system can verify but cannot reconstruct your fingerprint.
+            <strong>Privacy note:</strong> Device binding uses canvas + browser signals (user-agent, screen, timezone) — no IP address is collected. Passwords are stored as bcrypt hashes; the plain-text copy visible to admins is for credential recovery only.
           </div>
         </CardContent>
       </Card>

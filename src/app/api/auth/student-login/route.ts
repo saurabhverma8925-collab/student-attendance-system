@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
         studentId: student.studentId,
         name: student.name,
         role: 'student',
-        fingerprintEnrolled: student.fingerprintEnrolled,
         deviceFingerprint: student.deviceFingerprint,
         hasSeenOnboarding: student.hasSeenOnboarding,
         branch: student.branch,

@@ -29,7 +29,6 @@ async function main() {
         ...s,
         passwordHash: hashPassword('student123'),
         passwordPlain: 'student123',
-        fingerprintEnrolled: false,
       },
     })
     added++
