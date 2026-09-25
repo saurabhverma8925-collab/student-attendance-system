@@ -16,10 +16,12 @@ export async function GET(req: NextRequest) {
   if (!subjectId || !dateStr) {
     return NextResponse.json({ error: 'subjectId and date are required' }, { status: 400 })
   }
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) {
+  // Normalize to start-of-day UTC so it matches the stored QR session date
+  const parsed = new Date(dateStr)
+  if (isNaN(parsed.getTime())) {
     return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
   }
+  const date = new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
 
   const qr = await db.qRSession.findFirst({
     where: { subjectId, date, isActive: true },

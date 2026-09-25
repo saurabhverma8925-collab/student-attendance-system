@@ -12,6 +12,7 @@ import {
   RefreshCw,
   User,
   AlertTriangle,
+  CameraOff,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { api } from '@/lib/client/api'
@@ -27,6 +28,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { Html5Qrcode } from 'html5-qrcode'
 
 type Stage = 'idle' | 'scanning-qr' | 'qr-scanned' | 'verifying-face' | 'success' | 'error'
 
@@ -44,24 +46,60 @@ export function StudentQRAttendance() {
   const { user } = useAppStore()
   const [stage, setStage] = useState<Stage>('idle')
   const [token, setToken] = useState('')
+  const [manualToken, setManualToken] = useState('')
   const [verifyProgress, setVerifyProgress] = useState(0)
   const [result, setResult] = useState<VerifyResult | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [cameraSupported, setCameraSupported] = useState<boolean | null>(null)
+  const [scanStatus, setScanStatus] = useState<string>('')
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const qrScannerRef = useRef<Html5Qrcode | null>(null)
+  const qrRegionId = 'qr-scan-region'
 
-  // Cleanup camera stream on unmount
+  // Check camera support on mount
   useEffect(() => {
-    return () => stopCamera()
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setCameraSupported(false)
+    } else {
+      // Try a quick permission probe
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then((stream) => {
+          stream.getTracks().forEach((t) => t.stop())
+          setCameraSupported(true)
+        })
+        .catch(() => setCameraSupported(false))
+    }
+    return () => stopAll()
   }, [])
 
-  function stopCamera() {
+  function stopAll() {
+    // Stop html5-qrcode scanner
+    if (qrScannerRef.current) {
+      try {
+        qrScannerRef.current
+          .stop()
+          .then(() => qrScannerRef.current?.clear())
+          .catch(() => {})
+      } catch {
+        // ignore
+      }
+      qrScannerRef.current = null
+    }
+    // Stop any raw stream
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
       streamRef.current = null
     }
   }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => stopAll()
+  }, [])
 
   // Face verification animation
   useEffect(() => {
@@ -78,70 +116,114 @@ export function StudentQRAttendance() {
     return () => clearInterval(iv)
   }, [stage])
 
+  // Real QR scanning using html5-qrcode
   async function startQRScan() {
     setStage('scanning-qr')
     setToken('')
     setResult(null)
     setErrorMsg('')
+    setScanStatus('Requesting camera…')
+
+    // Wait a tick so the QR region div exists in the DOM
+    await new Promise((r) => setTimeout(r, 100))
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+      const html5QrCode = new Html5Qrcode(qrRegionId, {
+        verbose: false,
+        useBarCodeDetectorIfSupported: true,
       })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
+      qrScannerRef.current = html5QrCode
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
       }
+
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        config,
+        (decodedText) => {
+          // Success — a real QR was decoded
+          setScanStatus('QR decoded!')
+          void onQRDetected(decodedText)
+        },
+        () => {
+          // Per-frame failure — silently ignore (this fires constantly)
+        },
+      )
+      setScanStatus('Point your camera at the QR code')
     } catch (e: any) {
+      console.error('QR scanner start failed:', e)
       toast.error('Camera access denied. Use manual token entry instead.')
       setStage('idle')
+      setScanStatus('')
     }
-  }
-
-  // Simulate QR detection after 4 seconds (real impl would use html5-qrcode)
-  // For demo, after camera starts, accept a "manual capture" button
-  async function captureFrame() {
-    if (!videoRef.current) return
-    // Capture a frame from the video to canvas → dataURL
-    const canvas = document.createElement('canvas')
-    canvas.width = videoRef.current.videoWidth || 640
-    canvas.height = videoRef.current.videoHeight || 480
-    const ctx = canvas.getContext('2d')
-    if (ctx) ctx.drawImage(videoRef.current, 0, 0)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
-    stopCamera()
-    return dataUrl
   }
 
   async function onQRDetected(scannedToken: string) {
     setToken(scannedToken)
     setStage('qr-scanned')
-    stopCamera()
+    setScanStatus('')
+    // Stop the QR scanner (frees the camera for the next stage)
+    if (qrScannerRef.current) {
+      try {
+        await qrScannerRef.current.stop()
+        qrScannerRef.current.clear()
+      } catch {
+        // ignore
+      }
+      qrScannerRef.current = null
+    }
   }
 
-  async function startFaceVerification() {
-    setStage('verifying-face')
-    setVerifyProgress(0)
-    // Try to open the front-facing camera for face capture
+  function submitManualToken() {
+    if (!manualToken.trim()) {
+      toast.error('Enter a QR token first')
+      return
+    }
+    setToken(manualToken.trim())
+    setStage('qr-scanned')
+  }
+
+  // Capture a frame from the front camera (used as the "face" — only hashed)
+  async function captureFrameFromFrontCamera(): Promise<string | undefined> {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
       })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-    } catch (e: any) {
-      toast.error('Camera access denied for face capture.')
+      const video = document.createElement('video')
+      video.srcObject = stream
+      video.muted = true
+      video.playsInline = true
+      await video.play()
+      // Wait a moment for the video to render a frame
+      await new Promise((r) => setTimeout(r, 800))
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth || 640
+      canvas.height = video.videoHeight || 480
+      const ctx = canvas.getContext('2d')
+      if (ctx) ctx.drawImage(video, 0, 0)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
+      stream.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+      return dataUrl
+    } catch {
+      return undefined
     }
+  }
+
+  async function startFaceVerification() {
+    setStage('verifying-face')
+    setVerifyProgress(0)
   }
 
   async function submitFaceVerification() {
     setBusy(true)
     try {
       // Capture a frame as the "face" (used only as a privacy hash)
-      const capturedPhoto = await captureFrame()
+      const capturedPhoto = await captureFrameFromFrontCamera()
       const r = await api<VerifyResult>('/api/qr-attendance/verify-face', {
         method: 'POST',
         body: JSON.stringify({ token, capturedPhoto }),
@@ -159,17 +241,18 @@ export function StudentQRAttendance() {
       toast.error(e.message)
     } finally {
       setBusy(false)
-      stopCamera()
     }
   }
 
   function reset() {
-    stopCamera()
+    stopAll()
     setStage('idle')
     setToken('')
+    setManualToken('')
     setResult(null)
     setErrorMsg('')
     setVerifyProgress(0)
+    setScanStatus('')
   }
 
   return (
@@ -187,7 +270,11 @@ export function StudentQRAttendance() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between flex-wrap gap-2">
-            <span>Step {stage === 'idle' ? '1' : stage === 'scanning-qr' ? '2' : stage === 'verifying-face' ? '3' : '✓'}: {
+            <span>Step {
+              stage === 'idle' ? '1' :
+              stage === 'scanning-qr' ? '2' :
+              stage === 'verifying-face' ? '3' : '✓'
+            }: {
               stage === 'idle' ? 'Start' :
               stage === 'scanning-qr' ? 'Scan QR' :
               stage === 'verifying-face' ? 'Face Verify' :
@@ -221,22 +308,39 @@ export function StudentQRAttendance() {
                   <p className="text-sm text-muted-foreground">
                     Click the button below to open your camera and scan the QR code displayed by the admin.
                   </p>
+                  {cameraSupported === false && (
+                    <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-2 mt-2">
+                      <CameraOff className="w-4 h-4 shrink-0" />
+                      <span>Camera not available in this browser. Use manual token entry below.</span>
+                    </div>
+                  )}
                 </div>
-                <Button onClick={startQRScan} size="lg">
+                <Button
+                  onClick={startQRScan}
+                  size="lg"
+                  disabled={cameraSupported === false}
+                >
                   <Camera className="w-4 h-4 mr-2" /> Open Camera Scanner
                 </Button>
+
                 <div className="w-full border-t border-border pt-4 mt-2">
                   <Label className="text-xs uppercase text-muted-foreground">Manual token entry</Label>
                   <div className="flex gap-2 mt-2">
                     <Input
-                      value={token}
-                      onChange={(e) => setToken(e.target.value.trim())}
+                      value={manualToken}
+                      onChange={(e) => setManualToken(e.target.value.trim())}
                       placeholder="Paste QR token here…"
                       className="font-mono text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          submitManualToken()
+                        }
+                      }}
                     />
                     <Button
-                      onClick={() => token && onQRDetected(token)}
-                      disabled={!token}
+                      onClick={submitManualToken}
+                      disabled={!manualToken.trim()}
                       variant="outline"
                     >
                       Continue
@@ -249,7 +353,7 @@ export function StudentQRAttendance() {
               </motion.div>
             )}
 
-            {/* Stage 2: Scanning QR */}
+            {/* Stage 2: Scanning QR (real html5-qrcode scanner) */}
             {stage === 'scanning-qr' && (
               <motion.div
                 key="scanning"
@@ -258,34 +362,20 @@ export function StudentQRAttendance() {
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center gap-4 py-6"
               >
-                <div className="relative">
-                  <video
-                    ref={videoRef}
-                    className="w-72 h-72 object-cover rounded-xl bg-black"
-                    playsInline
-                    muted
-                  />
-                  <motion.div
-                    className="absolute inset-x-4 h-0.5 bg-emerald-400 shadow-lg"
-                    animate={{ top: ['15%', '85%', '15%'] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                  <div className="absolute inset-4 border-2 border-emerald-400/50 rounded-lg pointer-events-none" />
-                </div>
+                {/* This div is where html5-qrcode injects its video feed */}
+                <div
+                  id={qrRegionId}
+                  className="w-72 h-72 rounded-xl overflow-hidden bg-black border-2 border-primary/40"
+                />
                 <div className="text-sm text-muted-foreground flex items-center gap-2">
                   <ScanLine className="w-4 h-4 animate-pulse" />
-                  Point at the QR code…
+                  {scanStatus || 'Point at the QR code…'}
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => onQRDetected('demo-token-placeholder')} size="sm" disabled={!streamRef.current}>
-                    Capture QR
-                  </Button>
-                  <Button onClick={reset} size="sm" variant="outline">
-                    Cancel
-                  </Button>
-                </div>
+                <Button onClick={reset} size="sm" variant="outline">
+                  Cancel
+                </Button>
                 <p className="text-[11px] text-muted-foreground text-center max-w-xs">
-                  Demo note: for testing, click &quot;Capture QR&quot; once the camera is active, then paste a real QR token on the next screen if needed.
+                  Hold your camera steady. The scanner auto-detects the QR code — no button press needed.
                 </p>
               </motion.div>
             )}
@@ -331,13 +421,8 @@ export function StudentQRAttendance() {
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center gap-4 py-6"
               >
-                <div className="relative">
-                  <video
-                    ref={videoRef}
-                    className="w-72 h-72 object-cover rounded-full bg-black"
-                    playsInline
-                    muted
-                  />
+                <div className="relative w-72 h-72 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                  <User className="w-32 h-32 text-muted-foreground" />
                   <svg className="absolute inset-0 w-full h-full -rotate-90">
                     <circle
                       cx="50%"
@@ -360,7 +445,7 @@ export function StudentQRAttendance() {
                   <Loader2 className="w-4 h-4 animate-spin" /> Verifying your face…
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Look directly at the camera and hold still.
+                  Looking for your registered face…
                 </p>
               </motion.div>
             )}

@@ -57,7 +57,14 @@ interface QRSession {
 export function QRAttendanceView() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectId, setSubjectId] = useState<string>('')
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10))
+  // Use the user's local date (not UTC) so the input shows today correctly
+  const [date, setDate] = useState<string>(() => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  })
   const [duration, setDuration] = useState<number>(10)
   const [busy, setBusy] = useState(false)
   const [generating, setGenerating] = useState(false)

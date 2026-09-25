@@ -25,11 +25,17 @@ export async function POST(req: NextRequest) {
   const subject = await db.subject.findUnique({ where: { id: subjectId } })
   if (!subject) return NextResponse.json({ error: 'Subject not found' }, { status: 404 })
 
-  const classDate = date ? new Date(date) : new Date()
+  // Normalize the date to start-of-day UTC. The date input from the browser
+  // gives "YYYY-MM-DD" which `new Date(...)` parses as midnight UTC — but
+  // some callers may send ISO timestamps with hours/minutes. Strip those so
+  // the stored date always matches the admin's "active" query (which also
+  // normalizes to midnight UTC).
+  const classDate = date ? normalizeToStartOfDay(date) : normalizeToStartOfDay(new Date().toISOString())
   if (isNaN(classDate.getTime())) {
     return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
   }
   const mins = durationMinutes && durationMinutes > 0 ? durationMinutes : 10
+  // ExpiresAt is a real timestamp — used to detect expiry vs. active status
   const expiresAt = new Date(Date.now() + mins * 60 * 1000)
 
   // Deactivate any previous active QR sessions for the same subject+date
@@ -68,4 +74,11 @@ export async function POST(req: NextRequest) {
     expiresAt: expiresAt.toISOString(),
     durationMinutes: mins,
   })
+}
+
+// Helper: normalize any date input (YYYY-MM-DD or ISO timestamp) to start-of-day UTC
+function normalizeToStartOfDay(input: string | Date): Date {
+  const d = input instanceof Date ? input : new Date(input)
+  if (isNaN(d.getTime())) return new Date(NaN)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
 }

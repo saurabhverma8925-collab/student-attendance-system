@@ -54,7 +54,14 @@ export function AttendanceView() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [subjectId, setSubjectId] = useState<string>('')
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10))
+  // Use the user's local date (not UTC) so the input shows today correctly
+  const [date, setDate] = useState<string>(() => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  })
   const [records, setRecords] = useState<Record<string, 'Present' | 'Absent'>>({})
   const [busy, setBusy] = useState(false)
   const [loadingList, setLoadingList] = useState(false)
