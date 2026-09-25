@@ -28,7 +28,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Html5Qrcode } from 'html5-qrcode'
 
 type Stage = 'idle' | 'scanning-qr' | 'qr-scanned' | 'verifying-face' | 'success' | 'error'
 
@@ -51,54 +50,22 @@ export function StudentQRAttendance() {
   const [result, setResult] = useState<VerifyResult | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [busy, setBusy] = useState(false)
-  const [cameraSupported, setCameraSupported] = useState<boolean | null>(null)
   const [scanStatus, setScanStatus] = useState<string>('')
+  // null = unknown / not tried yet
+  // true  = camera works
+  // false  = camera failed when we tried (we show a friendly error + manual fallback)
+  const [cameraError, setCameraError] = useState<string | null>(null)
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const qrScannerRef = useRef<Html5Qrcode | null>(null)
+  const qrScannerRef = useRef<any>(null)
   const qrRegionId = 'qr-scan-region'
-
-  // Check camera support on mount
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      setCameraSupported(false)
-    } else {
-      // Try a quick permission probe
-      navigator.mediaDevices
-        .getUserMedia({ video: true })
-        .then((stream) => {
-          stream.getTracks().forEach((t) => t.stop())
-          setCameraSupported(true)
-        })
-        .catch(() => setCameraSupported(false))
-    }
-    return () => stopAll()
-  }, [])
-
-  function stopAll() {
-    // Stop html5-qrcode scanner
-    if (qrScannerRef.current) {
-      try {
-        qrScannerRef.current
-          .stop()
-          .then(() => qrScannerRef.current?.clear())
-          .catch(() => {})
-      } catch {
-        // ignore
-      }
-      qrScannerRef.current = null
-    }
-    // Stop any raw stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
-    }
-  }
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => stopAll()
+    return () => {
+      stopAll()
+    }
   }, [])
 
   // Face verification animation
@@ -116,18 +83,87 @@ export function StudentQRAttendance() {
     return () => clearInterval(iv)
   }, [stage])
 
+  function stopAll() {
+    // Stop html5-qrcode scanner if running
+    if (qrScannerRef.current) {
+      try {
+        const scanner = qrScannerRef.current
+        scanner
+          .stop()
+          .then(() => {
+            try {
+              scanner.clear()
+            } catch {
+              // ignore
+            }
+          })
+          .catch(() => {
+            try {
+              scanner.clear()
+            } catch {
+              // ignore
+            }
+          })
+      } catch {
+        // ignore
+      }
+      qrScannerRef.current = null
+    }
+    // Stop any raw stream
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((t) => t.stop())
+      } catch {
+        // ignore
+      }
+      streamRef.current = null
+    }
+  }
+
+  // Wait for a DOM element with the given id to appear (used to ensure the
+  // QR scan region div is mounted before html5-qrcode tries to use it)
+  async function waitForElement(id: string, timeoutMs = 2000): Promise<HTMLElement | null> {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      const el = document.getElementById(id)
+      if (el) return el
+      await new Promise((r) => setTimeout(r, 50))
+    }
+    return null
+  }
+
   // Real QR scanning using html5-qrcode
+  // We dynamically import the library so it never breaks SSR / initial render
   async function startQRScan() {
     setStage('scanning-qr')
     setToken('')
     setResult(null)
     setErrorMsg('')
-    setScanStatus('Requesting camera…')
+    setCameraError(null)
+    setScanStatus('Starting camera…')
 
-    // Wait a tick so the QR region div exists in the DOM
-    await new Promise((r) => setTimeout(r, 100))
+    // Wait for the scan-region div to actually be in the DOM
+    const el = await waitForElement(qrRegionId)
+    if (!el) {
+      setCameraError('Could not initialise the camera scanner. Please use manual token entry below.')
+      setStage('idle')
+      setScanStatus('')
+      return
+    }
+
+    // Check if camera APIs exist at all
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError(
+        'Camera not supported in this browser. Use manual token entry below — ask the admin for the token shown under the QR image.'
+      )
+      setStage('idle')
+      setScanStatus('')
+      return
+    }
 
     try {
+      // Dynamic import — keeps html5-qrcode out of the SSR bundle
+      const { Html5Qrcode } = await import('html5-qrcode')
       const html5QrCode = new Html5Qrcode(qrRegionId, {
         verbose: false,
         useBarCodeDetectorIfSupported: true,
@@ -143,7 +179,7 @@ export function StudentQRAttendance() {
       await html5QrCode.start(
         { facingMode: 'environment' },
         config,
-        (decodedText) => {
+        (decodedText: string) => {
           // Success — a real QR was decoded
           setScanStatus('QR decoded!')
           void onQRDetected(decodedText)
@@ -154,10 +190,15 @@ export function StudentQRAttendance() {
       )
       setScanStatus('Point your camera at the QR code')
     } catch (e: any) {
-      console.error('QR scanner start failed:', e)
-      toast.error('Camera access denied. Use manual token entry instead.')
+      // Log as a warning (not error) so Next.js dev tools don't show it as
+      // an "issue" — the friendly UI message below is the user-facing copy.
+      console.warn('QR scanner start failed:', e)
+      const friendly = friendlyCameraError(e)
+      setCameraError(friendly)
       setStage('idle')
       setScanStatus('')
+      // Make sure scanner is cleaned up if start() partially succeeded
+      stopAll()
     }
   }
 
@@ -165,7 +206,6 @@ export function StudentQRAttendance() {
     setToken(scannedToken)
     setStage('qr-scanned')
     setScanStatus('')
-    // Stop the QR scanner (frees the camera for the next stage)
     if (qrScannerRef.current) {
       try {
         await qrScannerRef.current.stop()
@@ -189,6 +229,7 @@ export function StudentQRAttendance() {
   // Capture a frame from the front camera (used as the "face" — only hashed)
   async function captureFrameFromFrontCamera(): Promise<string | undefined> {
     try {
+      if (!navigator.mediaDevices?.getUserMedia) return undefined
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
       })
@@ -253,6 +294,7 @@ export function StudentQRAttendance() {
     setErrorMsg('')
     setVerifyProgress(0)
     setScanStatus('')
+    setCameraError(null)
   }
 
   return (
@@ -308,20 +350,21 @@ export function StudentQRAttendance() {
                   <p className="text-sm text-muted-foreground">
                     Click the button below to open your camera and scan the QR code displayed by the admin.
                   </p>
-                  {cameraSupported === false && (
-                    <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-2 mt-2">
-                      <CameraOff className="w-4 h-4 shrink-0" />
-                      <span>Camera not available in this browser. Use manual token entry below.</span>
-                    </div>
-                  )}
                 </div>
                 <Button
                   onClick={startQRScan}
                   size="lg"
-                  disabled={cameraSupported === false}
                 >
                   <Camera className="w-4 h-4 mr-2" /> Open Camera Scanner
                 </Button>
+
+                {/* Camera error (only shown if user tried and it failed) */}
+                {cameraError && (
+                  <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-md p-3 max-w-md">
+                    <CameraOff className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{cameraError}</span>
+                  </div>
+                )}
 
                 <div className="w-full border-t border-border pt-4 mt-2">
                   <Label className="text-xs uppercase text-muted-foreground">Manual token entry</Label>
@@ -375,7 +418,7 @@ export function StudentQRAttendance() {
                   Cancel
                 </Button>
                 <p className="text-[11px] text-muted-foreground text-center max-w-xs">
-                  Hold your camera steady. The scanner auto-detects the QR code — no button press needed.
+                  Hold your camera steadily. The scanner auto-detects the QR code — no button press needed.
                 </p>
               </motion.div>
             )}
@@ -530,4 +573,22 @@ export function StudentQRAttendance() {
       </Card>
     </div>
   )
+}
+
+// Translate raw camera errors into friendly messages the user can act on.
+function friendlyCameraError(e: any): string {
+  const msg = (e?.message || String(e || '')).toLowerCase()
+  if (msg.includes('permission') || msg.includes('denied') || msg.includes('notallowed')) {
+    return 'Camera permission denied. Please allow camera access in your browser settings, then click the button again. Alternatively, use manual token entry below.'
+  }
+  if (msg.includes('notfound') || msg.includes('no camera') || msg.includes('device')) {
+    return 'No camera found on this device. Use manual token entry below — ask the admin for the token shown under the QR image.'
+  }
+  if (msg.includes('notreadable') || msg.includes('track')) {
+    return 'The camera is being used by another application. Close other apps using the camera and try again, or use manual token entry below.'
+  }
+  if (msg.includes('secure') || msg.includes('https') || msg.includes('origin')) {
+    return 'Camera access requires HTTPS. Please use manual token entry below — ask the admin for the token shown under the QR image.'
+  }
+  return 'Could not start the camera scanner. Use manual token entry below — ask the admin for the token shown under the QR image.'
 }
