@@ -1,0 +1,44 @@
+'use client'
+
+import { create } from 'zustand'
+
+export type Role = 'admin' | 'student' | null
+
+export interface SessionUser {
+  id: string
+  name: string
+  role: Role
+  username?: string
+  studentId?: string
+  branch?: string
+  section?: string
+  semester?: number
+  fingerprintEnrolled?: boolean
+  deviceFingerprint?: string | null
+}
+
+interface AppState {
+  user: SessionUser | null
+  setUser: (u: SessionUser | null) => void
+
+  adminView:
+    | 'dashboard'
+    | 'students'
+    | 'attendance'
+    | 'reports'
+    | 'low-attendance'
+    | 'subjects'
+  setAdminView: (v: AppState['adminView']) => void
+
+  studentView: 'home' | 'subjects' | 'device' | 'biometric'
+  setStudentView: (v: AppState['studentView']) => void
+}
+
+export const useAppStore = create<AppState>((set) => ({
+  user: null,
+  setUser: (u) => set({ user: u }),
+  adminView: 'dashboard',
+  setAdminView: (v) => set({ adminView: v }),
+  studentView: 'home',
+  setStudentView: (v) => set({ studentView: v }),
+}))

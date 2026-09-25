@@ -1,0 +1,79 @@
+// Prisma schema for Student Attendance System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+}
+
+model Student {
+  id                     String   @id @default(cuid())
+  studentId              String   @unique // Roll number
+  name                   String
+  branch                 String
+  section                String
+  semester               Int
+  passwordHash           String
+  email                  String?
+  phone                   String?
+  // Browser fingerprint hash to enforce one-device-per-student
+  deviceFingerprint      String?
+  deviceRegisteredAt     DateTime?
+  // Whether student has completed biometric enrollment
+  fingerprintEnrolled    Boolean  @default(false)
+  fingerprintTemplateHash String? // hash only, never store raw biometric
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  attendances Attendance[]
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  branch      String
+  semester    Int
+  totalClasses Int     @default(0) // total classes conducted so far
+  createdAt   DateTime @default(now())
+
+  attendances Attendance[]
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  studentId   String
+  subjectId   String
+  date        DateTime // the class date
+  status      String   // "Present" | "Absent"
+  markedBy    String   // admin id
+  markedVia   String   @default("manual") // manual | biometric
+  createdAt   DateTime @default(now())
+
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId, date])
+}
+
+model DeviceRegistration {
+  id                String   @id @default(cuid())
+  studentId         String
+  deviceFingerprint String
+  userAgent         String
+  registeredAt      DateTime @default(now())
+
+  @@unique([studentId]) // one device per student
+}
