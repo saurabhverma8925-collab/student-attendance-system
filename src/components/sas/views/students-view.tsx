@@ -12,6 +12,7 @@ import {
   Fingerprint,
   Smartphone,
   Filter,
+  ShieldCheck,
 } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { Button } from '@/components/ui/button'
@@ -49,8 +50,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
+import { BiometricDeviceDialog } from './biometric-device-dialog'
 
 interface StudentRow {
   id: string
@@ -77,6 +78,7 @@ export function StudentsView() {
   const [editing, setEditing] = useState<StudentRow | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [delOpen, setDelOpen] = useState<StudentRow | null>(null)
+  const [manageOpen, setManageOpen] = useState<StudentRow | null>(null)
 
   async function load() {
     setLoading(true)
@@ -209,6 +211,9 @@ export function StudentsView() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => setManageOpen(s)} className="text-primary hover:text-primary" aria-label="Manage biometric & device" title="Manage biometric & device">
+                            <ShieldCheck className="w-4 h-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" onClick={() => setEditing(s)} aria-label="Edit">
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -269,6 +274,13 @@ export function StudentsView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BiometricDeviceDialog
+        student={manageOpen}
+        open={!!manageOpen}
+        onOpenChange={(o) => !o && setManageOpen(null)}
+        onDone={load}
+      />
     </div>
   )
 }
@@ -289,8 +301,6 @@ function StudentForm({
     email: initial?.email ?? '',
     phone: initial?.phone ?? '',
     password: '',
-    resetFingerprint: false,
-    resetDevice: false,
   })
   const [busy, setBusy] = useState(false)
 
@@ -408,21 +418,10 @@ function StudentForm({
       </div>
 
       {initial && (
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              checked={form.resetFingerprint}
-              onCheckedChange={(c) => setForm({ ...form, resetFingerprint: c })}
-            />
-            Reset fingerprint enrollment
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <Switch
-              checked={form.resetDevice}
-              onCheckedChange={(c) => setForm({ ...form, resetDevice: c })}
-            />
-            Unbind registered device
-          </label>
+        <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-md p-3">
+          <ShieldCheck className="w-4 h-4 inline mr-1 text-primary" />
+          To manage fingerprint enrollment or device registration, use the{' '}
+          <strong>Manage Biometric &amp; Device</strong> button (shield icon) next to this student in the table.
         </div>
       )}
 

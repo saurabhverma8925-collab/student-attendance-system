@@ -43,8 +43,8 @@ export function StudentApp() {
 
   const NAV = [
     { id: 'home', label: 'My Attendance', icon: LayoutDashboard },
-    { id: 'biometric', label: 'Fingerprint', icon: Fingerprint },
-    { id: 'device', label: 'Device', icon: Smartphone },
+    { id: 'biometric', label: 'Biometric Status', icon: Fingerprint },
+    { id: 'device', label: 'Device Status', icon: Smartphone },
   ] as const
 
   return (
@@ -86,18 +86,18 @@ export function StudentApp() {
         <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900 px-4 py-2 text-center">
           <span className="text-xs text-amber-800 dark:text-amber-200">
             ⚠️ Onboarding incomplete: please{' '}
+            <strong>visit the administrative office</strong>
+            {!user?.fingerprintEnrolled && !user?.deviceFingerprint && ' to '}
             {!user?.fingerprintEnrolled && (
-              <button onClick={() => setStudentView('biometric')} className="underline font-medium">
-                enroll fingerprint
-              </button>
+              <strong>enroll your fingerprint</strong>
             )}
             {!user?.fingerprintEnrolled && !user?.deviceFingerprint && ' and '}
             {!user?.deviceFingerprint && (
-              <button onClick={() => setStudentView('device')} className="underline font-medium">
-                register device
-              </button>
+              <strong>register your device</strong>
             )}
-            {' '}to enable attendance marking.
+            {!user?.fingerprintEnrolled && user?.deviceFingerprint ? ' — fingerprint enrollment is pending.' : ''}
+            {user?.fingerprintEnrolled && !user?.deviceFingerprint ? ' — device registration is pending.' : ''}
+            {!user?.fingerprintEnrolled && !user?.deviceFingerprint ? ' — these steps require admin action.' : ''}
           </span>
         </div>
       )}

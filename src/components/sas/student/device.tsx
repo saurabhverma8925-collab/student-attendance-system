@@ -5,14 +5,13 @@ import { motion } from 'framer-motion'
 import {
   Smartphone,
   CheckCircle2,
+  XCircle,
   Loader2,
+  Info,
   ShieldCheck,
-  RefreshCw,
   Fingerprint,
 } from 'lucide-react'
 import { api } from '@/lib/client/api'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardContent,
@@ -20,62 +19,41 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app-store'
-import { getBrowserFingerprint } from '@/lib/client/fingerprint'
-import { toast } from 'sonner'
+
+interface DeviceInfo {
+  device: {
+    deviceFingerprint: string | null
+    deviceRegisteredAt: string | null
+    fingerprintEnrolled: boolean
+  } | null
+}
 
 export function StudentDevice() {
-  const { user, setUser } = useAppStore()
-  const [busy, setBusy] = useState(false)
-  const [currentFp, setCurrentFp] = useState<string | null>(null)
-  const [deviceInfo, setDeviceInfo] = useState<any>(null)
+  const { user } = useAppStore()
+  const [info, setInfo] = useState<DeviceInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
-  async function loadDeviceInfo() {
-    try {
-      const r = await api<{ device: any }>('/api/auth/register-device')
-      setDeviceInfo(r.device)
-    } catch (e: any) {
-      // ignore
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    loadDeviceInfo()
+    api<DeviceInfo>('/api/auth/register-device')
+      .then(setInfo)
+      .finally(() => setLoading(false))
   }, [])
 
-  async function register() {
-    setBusy(true)
-    try {
-      const fp = await getBrowserFingerprint()
-      setCurrentFp(fp)
-      await api('/api/auth/register-device', {
-        method: 'POST',
-        body: JSON.stringify({ deviceFingerprint: fp }),
-      })
-      toast.success('This device is now registered to your account.')
-      setUser({ ...(user as any), deviceFingerprint: fp })
-      loadDeviceInfo()
-    } catch (e: any) {
-      toast.error(e.message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const isRegistered = !!user?.deviceFingerprint
+  const isRegistered = !!(user?.deviceFingerprint || info?.device?.deviceFingerprint)
+  const registeredAt = info?.device?.deviceRegisteredAt
+  const fp = user?.deviceFingerprint || info?.device?.deviceFingerprint || null
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Smartphone className="w-6 h-6 text-primary" />
-          Device Registration
+          Device Status
         </h1>
         <p className="text-sm text-muted-foreground">
-          One device per student policy. After registration, attendance can only be marked from this device.
+          Your registered device. Only administrators can register or unbind devices.
         </p>
       </div>
 
@@ -88,62 +66,64 @@ export function StudentDevice() {
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Registered
               </Badge>
             ) : (
-              <Badge variant="secondary">Not registered</Badge>
+              <Badge variant="secondary">
+                <XCircle className="w-3.5 h-3.5 mr-1" /> Not Registered
+              </Badge>
             )}
           </CardTitle>
           <CardDescription>
-            Device fingerprint is computed from canvas, user-agent, screen, timezone — no IP address used.
+            One device per student policy. Device binding is admin-controlled.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center gap-6 py-4">
-            <motion.div
-              animate={busy ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-              transition={{ duration: 0.8, repeat: busy ? Infinity : 0 }}
-              className={`w-36 h-36 rounded-2xl flex items-center justify-center ${
-                isRegistered ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-muted'
-              }`}
-            >
-              {busy ? (
-                <Loader2 className="w-16 h-16 text-primary animate-spin" />
-              ) : isRegistered ? (
-                <CheckCircle2 className="w-16 h-16 text-emerald-600" />
-              ) : (
-                <Smartphone className="w-16 h-16 text-muted-foreground" />
-              )}
-            </motion.div>
+          {loading ? (
+            <div className="py-10 flex items-center justify-center gap-2 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin" /> Loading status…
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className={`w-32 h-32 rounded-2xl flex items-center justify-center ${
+                  isRegistered ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-muted'
+                }`}
+              >
+                {isRegistered ? (
+                  <CheckCircle2 className="w-16 h-16 text-emerald-600" />
+                ) : (
+                  <Smartphone className="w-16 h-16 text-muted-foreground" />
+                )}
+              </motion.div>
 
-            <div className="text-center space-y-2 max-w-md">
               {isRegistered ? (
-                <>
+                <div className="text-center space-y-2 max-w-md">
                   <div className="font-medium text-emerald-600">
-                    This device is bound to your account.
+                    A device is bound to your account.
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Fingerprint hash: <code className="font-mono text-[10px] break-all">{(user?.deviceFingerprint || '').slice(0, 32)}…</code>
-                    <br />
-                    Registered at: {deviceInfo?.device?.deviceRegisteredAt ? new Date(deviceInfo.device.deviceRegisteredAt).toLocaleString() : '—'}
+                  <div className="text-xs text-muted-foreground">
+                    <div>
+                      Registered at: <strong>{registeredAt ? new Date(registeredAt).toLocaleString() : '—'}</strong>
+                    </div>
+                    <div className="mt-1">
+                      Device fingerprint: <code className="font-mono text-[10px] break-all">{fp ? fp.slice(0, 32) : '—'}…</code>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground pt-2">
+                    To change your registered device, contact the administrative office.
                   </p>
-                  <Button variant="outline" onClick={register} disabled={busy}>
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                    Re-register on this device
-                  </Button>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="text-center space-y-2 max-w-md">
                   <div className="font-medium">No device registered yet</div>
                   <p className="text-xs text-muted-foreground">
-                    Click the button below to bind this browser/device to your account.
-                    Only one device is allowed per student.
+                    Please visit the administrative office to register your device.
+                    Until your device is registered, biometric attendance marking will be unavailable.
                   </p>
-                  <Button onClick={register} disabled={busy} size="lg">
-                    {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Smartphone className="w-4 h-4 mr-2" />}
-                    Register this device
-                  </Button>
-                </>
+                </div>
               )}
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
@@ -166,14 +146,23 @@ export function StudentDevice() {
           <CardContent className="p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Fingerprint className="w-4 h-4 text-amber-600" />
-              Lost your device?
+              Lost or changed your device?
             </div>
             <p className="text-xs text-muted-foreground">
-              Contact your administrator. They can reset your device binding from the Student Management screen so you can re-register a new device.
+              Visit the administrative office. An administrator can unbind your old device and register a new one for you. Students cannot self-register or self-unbind.
             </p>
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-blue-200 dark:border-blue-900 bg-blue-50/40 dark:bg-blue-950/10">
+        <CardContent className="p-4 flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+          <div className="text-xs text-blue-800 dark:text-blue-200">
+            <strong>Privacy note:</strong> No IP address is collected. The device fingerprint is derived from canvas rendering, user-agent, screen, and timezone signals — all processed locally on the admin&apos;s terminal during registration.
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
