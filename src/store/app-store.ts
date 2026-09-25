@@ -25,12 +25,14 @@ interface AppState {
     | 'dashboard'
     | 'students'
     | 'attendance'
+    | 'qr-attendance'
+    | 'resources'
     | 'reports'
     | 'low-attendance'
     | 'subjects'
   setAdminView: (v: AppState['adminView']) => void
 
-  studentView: 'home' | 'subjects' | 'device'
+  studentView: 'home' | 'subjects' | 'device' | 'resources' | 'qr-attendance'
   setStudentView: (v: AppState['studentView']) => void
 
   // Set to true when student just logged in and hasn't seen onboarding screen yet

@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   Menu,
+  QrCode,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { api } from '@/lib/client/api'
@@ -20,6 +21,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { StudentDashboard } from './student/dashboard'
 import { StudentDevice } from './student/device'
 import { StudentOnboarding } from './student/onboarding'
+import { StudentResources } from './student/resources'
+import { StudentQRAttendance } from './student/qr-attendance'
 
 export function StudentApp() {
   const { user, setUser, studentView, setStudentView, showOnboarding, setShowOnboarding } = useAppStore()
@@ -49,6 +52,8 @@ export function StudentApp() {
 
   const NAV = [
     { id: 'home', label: 'My Attendance', icon: LayoutDashboard },
+    { id: 'qr-attendance', label: 'QR Attendance', icon: QrCode },
+    { id: 'resources', label: 'Study Resources', icon: GraduationCap },
     { id: 'device', label: 'Device Status', icon: Smartphone },
   ] as const
 
@@ -164,6 +169,8 @@ export function StudentApp() {
             transition={{ duration: 0.25 }}
           >
             {studentView === 'home' && <StudentDashboard />}
+            {studentView === 'qr-attendance' && <StudentQRAttendance />}
+            {studentView === 'resources' && <StudentResources />}
             {studentView === 'device' && <StudentDevice />}
           </motion.div>
         </main>

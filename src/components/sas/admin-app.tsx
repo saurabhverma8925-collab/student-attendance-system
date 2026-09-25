@@ -12,6 +12,7 @@ import {
   LogOut,
   GraduationCap,
   Menu,
+  QrCode,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { api } from '@/lib/client/api'
@@ -22,12 +23,16 @@ import { AttendanceView } from './views/attendance-view'
 import { ReportsView } from './views/reports-view'
 import { LowAttendanceView } from './views/low-attendance-view'
 import { SubjectsView } from './views/subjects-view'
+import { ResourcesView } from './views/resources-view'
+import { QRAttendanceView } from './views/qr-attendance-view'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'students', label: 'Students', icon: Users },
   { id: 'subjects', label: 'Subjects', icon: BookOpen },
   { id: 'attendance', label: 'Mark Attendance', icon: CalendarCheck },
+  { id: 'qr-attendance', label: 'QR Attendance', icon: QrCode },
+  { id: 'resources', label: 'Study Resources', icon: GraduationCap },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'low-attendance', label: 'Low Attendance', icon: AlertTriangle },
 ] as const
@@ -148,6 +153,8 @@ export function AdminApp() {
             {adminView === 'students' && <StudentsView />}
             {adminView === 'subjects' && <SubjectsView />}
             {adminView === 'attendance' && <AttendanceView />}
+            {adminView === 'qr-attendance' && <QRAttendanceView />}
+            {adminView === 'resources' && <ResourcesView />}
             {adminView === 'reports' && <ReportsView />}
             {adminView === 'low-attendance' && <LowAttendanceView />}
           </motion.div>
