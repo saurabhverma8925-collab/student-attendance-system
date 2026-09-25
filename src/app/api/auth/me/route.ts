@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
         role: 'student',
         fingerprintEnrolled: student.fingerprintEnrolled,
         deviceFingerprint: student.deviceFingerprint,
+        hasSeenOnboarding: student.hasSeenOnboarding,
         branch: student.branch,
         section: student.section,
         semester: student.semester,

@@ -15,8 +15,15 @@ export function verifyPassword(p: string, hash: string) {
   return bcrypt.compareSync(p, hash)
 }
 
-// Simple in-memory session store keyed by token (good enough for demo)
-const sessions = new Map<string, SessionUser>()
+// In-memory session store keyed by token. Use globalThis so the Map
+// survives Next.js dev hot-reloads (otherwise every file change logs
+// everyone out).
+const globalForAuth = globalThis as unknown as {
+  authSessions?: Map<string, SessionUser>
+}
+const sessions: Map<string, SessionUser> =
+  globalForAuth.authSessions ?? new Map<string, SessionUser>()
+if (process.env.NODE_ENV !== 'production') globalForAuth.authSessions = sessions
 
 export function createSession(user: SessionUser) {
   const token = Math.random().toString(36).slice(2) + Date.now().toString(36)

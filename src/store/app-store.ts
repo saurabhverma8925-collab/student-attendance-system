@@ -15,6 +15,7 @@ export interface SessionUser {
   semester?: number
   fingerprintEnrolled?: boolean
   deviceFingerprint?: string | null
+  hasSeenOnboarding?: boolean
 }
 
 interface AppState {
@@ -32,6 +33,10 @@ interface AppState {
 
   studentView: 'home' | 'subjects' | 'device' | 'biometric'
   setStudentView: (v: AppState['studentView']) => void
+
+  // Set to true when student just logged in and hasn't seen onboarding screen yet
+  showOnboarding: boolean
+  setShowOnboarding: (v: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -41,4 +46,6 @@ export const useAppStore = create<AppState>((set) => ({
   setAdminView: (v) => set({ adminView: v }),
   studentView: 'home',
   setStudentView: (v) => set({ studentView: v }),
+  showOnboarding: false,
+  setShowOnboarding: (v) => set({ showOnboarding: v }),
 }))

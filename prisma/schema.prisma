@@ -26,14 +26,17 @@ model Student {
   section                String
   semester               Int
   passwordHash           String
+  passwordPlain          String   @default("") // visible to admin so they can share with student
   email                  String?
-  phone                   String?
+  phone                  String?
   // Browser fingerprint hash to enforce one-device-per-student
   deviceFingerprint      String?
   deviceRegisteredAt     DateTime?
   // Whether student has completed biometric enrollment
   fingerprintEnrolled    Boolean  @default(false)
   fingerprintTemplateHash String? // hash only, never store raw biometric
+  // Whether the student has seen the one-time onboarding screen (biometric + device status)
+  hasSeenOnboarding      Boolean  @default(false)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 

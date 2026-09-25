@@ -21,25 +21,34 @@ import { Card, CardContent } from '@/components/ui/card'
 import { StudentDashboard } from './student/dashboard'
 import { StudentBiometric } from './student/biometric'
 import { StudentDevice } from './student/device'
+import { StudentOnboarding } from './student/onboarding'
 
 export function StudentApp() {
-  const { user, setUser, studentView, setStudentView } = useAppStore()
+  const { user, setUser, studentView, setStudentView, showOnboarding, setShowOnboarding } = useAppStore()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Show one-time onboarding if student hasn't seen it yet
+  useEffect(() => {
+    if (user?.role === 'student' && user.hasSeenOnboarding === false) {
+      setShowOnboarding(true)
+    } else {
+      setShowOnboarding(false)
+    }
+  }, [user, setShowOnboarding])
 
   async function logout() {
     await api('/api/auth/logout', { method: 'POST' })
     setUser(null)
   }
 
+  // If onboarding should show, render it instead of the dashboard
+  if (showOnboarding) {
+    return <StudentOnboarding />
+  }
+
   // Show onboarding prompts for fingerprint/device if not yet done
   const needsOnboarding =
     !user?.fingerprintEnrolled || !user?.deviceFingerprint
-
-  useEffect(() => {
-    if (needsOnboarding && studentView !== 'biometric' && studentView !== 'device') {
-      // Don't force-redirect; just hint
-    }
-  }, [needsOnboarding, studentView])
 
   const NAV = [
     { id: 'home', label: 'My Attendance', icon: LayoutDashboard },

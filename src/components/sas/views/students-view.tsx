@@ -13,6 +13,10 @@ import {
   Smartphone,
   Filter,
   ShieldCheck,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { api } from '@/lib/client/api'
 import { Button } from '@/components/ui/button'
@@ -50,6 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { BiometricDeviceDialog } from './biometric-device-dialog'
 
@@ -62,9 +67,11 @@ interface StudentRow {
   semester: number
   email: string | null
   phone: string | null
+  passwordPlain: string | null
   fingerprintEnrolled: boolean
   deviceFingerprint: string | null
   deviceRegisteredAt: string | null
+  hasSeenOnboarding: boolean
   createdAt: string
 }
 
@@ -181,6 +188,7 @@ export function StudentsView() {
                     <TableHead>Branch</TableHead>
                     <TableHead>Sec</TableHead>
                     <TableHead>Sem</TableHead>
+                    <TableHead>Password</TableHead>
                     <TableHead className="text-center">Biometric</TableHead>
                     <TableHead className="text-center">Device</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -203,6 +211,9 @@ export function StudentsView() {
                       <TableCell><Badge variant="outline">{s.branch}</Badge></TableCell>
                       <TableCell>{s.section}</TableCell>
                       <TableCell>{s.semester}</TableCell>
+                      <TableCell>
+                        <PasswordCell password={s.passwordPlain || ''} />
+                      </TableCell>
                       <TableCell className="text-center">
                         <Fingerprint className={`w-4 h-4 mx-auto ${s.fingerprintEnrolled ? 'text-emerald-600' : 'text-muted-foreground/40'}`} />
                       </TableCell>
@@ -300,26 +311,54 @@ function StudentForm({
     semester: initial?.semester ?? 3,
     email: initial?.email ?? '',
     phone: initial?.phone ?? '',
-    password: '',
+    password: initial?.passwordPlain ?? '',
   })
+  const [showPwd, setShowPwd] = useState(false)
+  const [enrollFingerprint, setEnrollFingerprint] = useState(initial?.fingerprintEnrolled ?? false)
+  const [registerDevice, setRegisterDevice] = useState(!!initial?.deviceFingerprint)
   const [busy, setBusy] = useState(false)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
+    if (!form.password || form.password.length < 4) {
+      toast.error('Password must be at least 4 characters')
+      return
+    }
     setBusy(true)
     try {
       if (initial) {
+        // Edit mode — only update fields that changed
+        const payload: any = {
+          name: form.name,
+          branch: form.branch,
+          section: form.section,
+          semester: form.semester,
+          email: form.email,
+          phone: form.phone,
+        }
+        // Only include password if it changed from current plain password
+        if (form.password !== (initial.passwordPlain || '')) {
+          payload.password = form.password
+        }
         await api(`/api/students/${initial.id}`, {
           method: 'PUT',
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         })
         toast.success('Student updated')
       } else {
+        // Add mode — pass everything including enrollment flags
         await api('/api/students', {
           method: 'POST',
-          body: JSON.stringify({ ...form, password: form.password || 'student123' }),
+          body: JSON.stringify({
+            ...form,
+            enrollFingerprint,
+            registerDevice,
+          }),
         })
-        toast.success('Student added. Default password: student123')
+        const parts = [`Student added with password: ${form.password}`]
+        if (enrollFingerprint) parts.push('fingerprint enrolled')
+        if (registerDevice) parts.push('device registered')
+        toast.success(parts.join(' • '))
       }
       onDone()
     } catch (e: any) {
@@ -334,7 +373,9 @@ function StudentForm({
       <DialogHeader>
         <DialogTitle>{initial ? 'Edit Student' : 'Add Student'}</DialogTitle>
         <DialogDescription>
-          {initial ? 'Update student details, password, or reset biometric / device.' : 'Enter all required fields.'}
+          {initial
+            ? 'Update student details or password. Biometric/device use the Manage button.'
+            : 'Set the student\'s password and optionally enroll fingerprint + register device now.'}
         </DialogDescription>
       </DialogHeader>
 
@@ -404,23 +445,77 @@ function StudentForm({
             placeholder="student@college.edu"
           />
         </div>
-        {initial && (
-          <div className="space-y-1.5 col-span-2">
-            <Label>New Password (leave blank to keep current)</Label>
+        <div className="space-y-1.5 col-span-2">
+          <Label>
+            {initial ? 'Password (edit and save to change)' : 'Password *'}
+          </Label>
+          <div className="relative">
             <Input
-              type="password"
+              type={showPwd ? 'text' : 'password'}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="••••••••"
+              required={!initial}
+              minLength={4}
             />
+            <button
+              type="button"
+              onClick={() => setShowPwd((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label="Toggle password visibility"
+            >
+              {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
-        )}
+          {!initial && (
+            <p className="text-[11px] text-muted-foreground">
+              This password will be visible to admins in the student list so you can share it with the student.
+            </p>
+          )}
+        </div>
       </div>
+
+      {/* On-creation options (only for new students) */}
+      {!initial && (
+        <div className="space-y-2 pt-2 border-t border-border">
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Onboarding options</Label>
+          <label className="flex items-start gap-3 p-2.5 rounded-md border border-border hover:bg-accent/30 cursor-pointer">
+            <Switch
+              checked={enrollFingerprint}
+              onCheckedChange={setEnrollFingerprint}
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Fingerprint className="w-3.5 h-3.5 text-primary" />
+                Enroll fingerprint now
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Generates a fingerprint template hash for this student. They can use biometric login after first password login.
+              </div>
+            </div>
+          </label>
+          <label className="flex items-start gap-3 p-2.5 rounded-md border border-border hover:bg-accent/30 cursor-pointer">
+            <Switch
+              checked={registerDevice}
+              onCheckedChange={setRegisterDevice}
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Smartphone className="w-3.5 h-3.5 text-primary" />
+                Register a device now
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Binds a default device fingerprint to this student. Replace later via the Manage dialog if needed.
+              </div>
+            </div>
+          </label>
+        </div>
+      )}
 
       {initial && (
         <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-md p-3">
           <ShieldCheck className="w-4 h-4 inline mr-1 text-primary" />
-          To manage fingerprint enrollment or device registration, use the{' '}
+          To enroll/reset fingerprint or register/unbind device, use the{' '}
           <strong>Manage Biometric &amp; Device</strong> button (shield icon) next to this student in the table.
         </div>
       )}
@@ -433,5 +528,48 @@ function StudentForm({
         </Button>
       </DialogFooter>
     </form>
+  )
+}
+
+function PasswordCell({ password }: { password: string }) {
+  const [revealed, setRevealed] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(password)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!password) {
+    return <span className="text-xs text-muted-foreground">—</span>
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <code className={`font-mono text-xs ${revealed ? '' : 'tracking-widest'}`}>
+        {revealed ? password : '••••••'}
+      </code>
+      <button
+        type="button"
+        onClick={() => setRevealed((r) => !r)}
+        className="text-muted-foreground hover:text-foreground"
+        aria-label={revealed ? 'Hide password' : 'Reveal password'}
+      >
+        {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+      </button>
+      <button
+        type="button"
+        onClick={copy}
+        className="text-muted-foreground hover:text-foreground"
+        aria-label="Copy password"
+      >
+        {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+      </button>
+    </div>
   )
 }

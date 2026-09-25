@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
         role: 'student',
         fingerprintEnrolled: student.fingerprintEnrolled,
         deviceFingerprint: student.deviceFingerprint,
+        hasSeenOnboarding: student.hasSeenOnboarding,
+        branch: student.branch,
+        section: student.section,
+        semester: student.semester,
       },
     })
     res.cookies.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 8 })

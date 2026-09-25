@@ -23,9 +23,11 @@ export async function GET(
       semester: true,
       email: true,
       phone: true,
+      passwordPlain: true,
       fingerprintEnrolled: true,
       deviceFingerprint: true,
       deviceRegisteredAt: true,
+      hasSeenOnboarding: true,
       createdAt: true,
     },
   })
@@ -52,7 +54,7 @@ export async function PUT(
   }
   const { id } = await ctx.params
   const body = await req.json()
-  const { name, branch, section, semester, email, phone, password, resetFingerprint, resetDevice } = body as any
+  const { name, branch, section, semester, email, phone, password } = body as any
 
   const data: any = {}
   if (name) data.name = name
@@ -61,14 +63,9 @@ export async function PUT(
   if (semester) data.semester = Number(semester)
   if (email !== undefined) data.email = email || null
   if (phone !== undefined) data.phone = phone || null
-  if (password) data.passwordHash = hashPassword(password)
-  if (resetFingerprint) {
-    data.fingerprintEnrolled = false
-    data.fingerprintTemplateHash = null
-  }
-  if (resetDevice) {
-    data.deviceFingerprint = null
-    data.deviceRegisteredAt = null
+  if (password && password.length >= 4) {
+    data.passwordHash = hashPassword(password)
+    data.passwordPlain = password
   }
 
   const updated = await db.student.update({ where: { id }, data })

@@ -46,6 +46,7 @@ async function main() {
         data: {
           ...s,
           passwordHash: hashPassword('student123'),
+          passwordPlain: 'student123',
           fingerprintEnrolled: Math.random() > 0.5,
         },
       }),
