@@ -13,6 +13,7 @@ import {
   GraduationCap,
   Menu,
   QrCode,
+  ShieldCheck,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { api } from '@/lib/client/api'
@@ -25,6 +26,7 @@ import { LowAttendanceView } from './views/low-attendance-view'
 import { SubjectsView } from './views/subjects-view'
 import { ResourcesView } from './views/resources-view'
 import { QRAttendanceView } from './views/qr-attendance-view'
+import { SecurityView } from './views/security-view'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,6 +37,7 @@ const NAV = [
   { id: 'resources', label: 'Study Resources', icon: GraduationCap },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'low-attendance', label: 'Low Attendance', icon: AlertTriangle },
+  { id: 'security', label: 'Security', icon: ShieldCheck },
 ] as const
 
 export function AdminApp() {
@@ -157,6 +160,7 @@ export function AdminApp() {
             {adminView === 'resources' && <ResourcesView />}
             {adminView === 'reports' && <ReportsView />}
             {adminView === 'low-attendance' && <LowAttendanceView />}
+            {adminView === 'security' && <SecurityView />}
           </motion.div>
         </main>
       </div>

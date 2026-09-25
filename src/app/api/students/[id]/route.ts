@@ -72,15 +72,35 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const token = _req.cookies.get('sas_session')?.value
+  const token = req.cookies.get('sas_session')?.value
   const session = getSession(token)
   if (!session || session.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const { id } = await ctx.params
+
+  // Find the student first (so we can record who got deleted in the audit log)
+  const student = await db.student.findUnique({
+    where: { id },
+    select: { id: true, studentId: true, name: true, branch: true },
+  })
+  if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
+
   await db.student.delete({ where: { id } })
+
+  // AUDIT LOG
+  await audit({
+    actorId: session.id,
+    actorRole: 'admin',
+    action: 'student.delete',
+    target: id,
+    ip: req.headers.get('x-forwarded-for') || null,
+    userAgent: req.headers.get('user-agent'),
+    details: { studentId: student.studentId, name: student.name, branch: student.branch },
+  })
+
   return NextResponse.json({ ok: true })
 }

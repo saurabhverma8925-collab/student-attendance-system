@@ -128,3 +128,34 @@ model QRScan {
 
   @@unique([qrSessionId, studentId]) // one scan per student per QR session
 }
+
+// Audit log of sensitive admin actions — for security forensics
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String   // who performed the action (admin id, student id, or "anonymous")
+  actorRole String   // "admin" | "student" | "system"
+  action    String   // e.g. "student.create", "student.delete", "attendance.mark", "device.unbind", "auth.login.success", "auth.login.failed"
+  target    String?  // affected entity id (student id, subject id, etc.)
+  ip        String?
+  userAgent String?
+  details   String?  // JSON-stringified extra context
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Failed login attempts — for rate limiting + brute-force detection
+model FailedLoginAttempt {
+  id        String   @id @default(cuid())
+  username  String   // the username/roll-no that was attempted
+  role      String   // "admin" | "student"
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([username])
+  @@index([ip])
+  @@index([createdAt])
+}

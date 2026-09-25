@@ -30,6 +30,7 @@ interface AppState {
     | 'reports'
     | 'low-attendance'
     | 'subjects'
+    | 'security'
   setAdminView: (v: AppState['adminView']) => void
 
   studentView: 'home' | 'subjects' | 'device' | 'resources' | 'qr-attendance'

@@ -313,8 +313,15 @@ function StudentForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.password || form.password.length < 4) {
-      toast.error('Password must be at least 4 characters')
+    if (!form.password) {
+      toast.error('Password is required')
+      return
+    }
+    // Strength validation (matches server-side check)
+    const hasLetter = /[a-zA-Z]/.test(form.password)
+    const hasDigit = /\d/.test(form.password)
+    if (form.password.length < 8 || !hasLetter || !hasDigit) {
+      toast.error('Password must be at least 8 chars and include both letters and digits')
       return
     }
     setBusy(true)
@@ -447,7 +454,8 @@ function StudentForm({
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="••••••••"
               required={!initial}
-              minLength={4}
+              minLength={8}
+              autoComplete={initial ? 'new-password' : 'new-password'}
             />
             <button
               type="button"
@@ -460,7 +468,7 @@ function StudentForm({
           </div>
           {!initial && (
             <p className="text-[11px] text-muted-foreground">
-              This password will be visible to admins in the student list so you can share it with the student.
+              Min 8 chars, must include both letters and digits. This password will be visible to admins in the student list so you can share it with the student.
             </p>
           )}
         </div>

@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import crypto from 'crypto'
+import {
+  audit,
+  checkRateLimit,
+  getClientIp,
+  getClientUa,
+  QR_VERIFY_RATE_LIMIT,
+  rateLimitKey,
+  sanitizeString,
+} from '@/lib/security'
 
 // POST /api/qr-attendance/verify-face
 // Student submits: { token, capturedPhoto (base64) }
@@ -17,8 +26,26 @@ export async function POST(req: NextRequest) {
   if (!session || session.role !== 'student') {
     return NextResponse.json({ error: 'Student access required' }, { status: 401 })
   }
+  const ip = getClientIp(req)
+  const ua = getClientUa(req)
+  const rateKey = rateLimitKey(req, 'qr-verify-face')
+
+  // RATE LIMIT — prevent attendance bombing
+  const limited = checkRateLimit(rateKey, QR_VERIFY_RATE_LIMIT)
+  if (limited) {
+    return NextResponse.json(
+      { error: `Too many scan attempts. Try again in ${limited.retryAfterSec} seconds.` },
+      { status: 429 },
+    )
+  }
+
   const body = await req.json()
-  const { token: qrToken, capturedPhoto } = body as { token: string; capturedPhoto?: string }
+  // Sanitize QR token — it's a hex string from our own server, but be defensive
+  const qrToken = sanitizeString(body?.token, 200)
+  // capturedPhoto is a base64 data URL — cap its length to prevent abuse
+  const capturedPhoto = typeof body?.capturedPhoto === 'string' && body.capturedPhoto.length < 5_000_000
+    ? body.capturedPhoto
+    : undefined
   if (!qrToken) {
     return NextResponse.json({ error: 'QR token is required' }, { status: 400 })
   }
@@ -125,6 +152,17 @@ export async function POST(req: NextRequest) {
       where: { id: qr.subjectId },
       data: { totalClasses: distinctDates.length },
     })
+  })
+
+  // AUDIT LOG the successful attendance mark
+  await audit({
+    actorId: student.id,
+    actorRole: 'student',
+    action: 'attendance.qr_marked',
+    target: qr.subjectId,
+    ip,
+    userAgent: ua,
+    details: { qrSessionId: qr.id, subjectCode: qr.subject.code, date: qr.date.toISOString() },
   })
 
   return NextResponse.json({
