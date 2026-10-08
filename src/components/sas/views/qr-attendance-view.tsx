@@ -151,11 +151,11 @@ export function QRAttendanceView() {
           <CardTitle>Generate QR Code</CardTitle>
           <CardDescription>Select subject + date + validity window. The QR refreshes live with attendance counts.</CardDescription>
         </CardHeader>
-        <CardContent className="grid sm:grid-cols-4 gap-3 items-end">
-          <div className="space-y-1.5">
+        <CardContent className="grid gap-3 items-end sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="space-y-1.5 min-w-0">
             <Label>Subject *</Label>
             <Select value={subjectId} onValueChange={setSubjectId}>
-              <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+              <SelectTrigger className="w-full min-w-0 [&>span]:truncate"><SelectValue placeholder="Select subject" /></SelectTrigger>
               <SelectContent>
                 {subjects.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
@@ -165,11 +165,11 @@ export function QRAttendanceView() {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 min-w-0">
             <Label>Date</Label>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 min-w-0">
             <Label>Valid (minutes)</Label>
             <Input
               type="number"
