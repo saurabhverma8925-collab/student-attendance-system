@@ -20,23 +20,10 @@ export interface SessionUser {
 interface AppState {
   user: SessionUser | null
   setUser: (u: SessionUser | null) => void
-
-  adminView:
-    | 'dashboard'
-    | 'students'
-    | 'attendance'
-    | 'qr-attendance'
-    | 'resources'
-    | 'reports'
-    | 'low-attendance'
-    | 'subjects'
-    | 'security'
+  adminView: 'java-dashboard' | 'teams' | 'topics' | 'review-submissions' | 'live-sessions' | 'students' | 'security'
   setAdminView: (v: AppState['adminView']) => void
-
-  studentView: 'home' | 'subjects' | 'device' | 'resources' | 'qr-attendance'
+  studentView: 'my-team' | 'topic-selection' | 'my-reviews' | 'live-sessions'
   setStudentView: (v: AppState['studentView']) => void
-
-  // Set to true when student just logged in and hasn't seen onboarding screen yet
   showOnboarding: boolean
   setShowOnboarding: (v: boolean) => void
 }
@@ -44,9 +31,9 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   user: null,
   setUser: (u) => set({ user: u }),
-  adminView: 'dashboard',
+  adminView: 'java-dashboard',
   setAdminView: (v) => set({ adminView: v }),
-  studentView: 'home',
+  studentView: 'my-team',
   setStudentView: (v) => set({ studentView: v }),
   showOnboarding: false,
   setShowOnboarding: (v) => set({ showOnboarding: v }),

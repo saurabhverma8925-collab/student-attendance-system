@@ -39,6 +39,7 @@ model Student {
 
   attendances Attendance[]
   qrScans    QRScan[]
+  teamMembers TeamMember[]
 }
 
 model Subject {
@@ -158,4 +159,113 @@ model FailedLoginAttempt {
   @@index([username])
   @@index([ip])
   @@index([createdAt])
+}
+
+// ============================================================================
+// JAVA PROJECT SUBMISSION PORTAL — models for team formation, topic selection,
+// progressive reviews (R0/R1/R2), marking rubrics, and live support sessions.
+// ============================================================================
+
+// A project team — 3-4 students + a faculty mentor.
+model Team {
+  id              String   @id @default(cuid())
+  teamName        String   @unique
+  facultyMentorId String
+  status          String   @default("forming") // "forming" | "finalized" | "locked"
+  batch           String   @default("2029")
+  createdAt       DateTime @default(now())
+  finalizedAt     DateTime?
+
+  members         TeamMember[]
+  invitations     TeamInvitation[]
+  reviewSubmissions ReviewSubmission[]
+
+  @@index([facultyMentorId])
+  @@index([status])
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  studentId String
+  role      String   // "Leader" | "Member"
+  addedAt   DateTime @default(now())
+
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, studentId])
+  @@index([studentId])
+}
+
+model TeamInvitation {
+  id              String   @id @default(cuid())
+  teamId          String
+  leaderStudentId String
+  inviteeEmail    String
+  inviteeStudentId String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  respondedAt     DateTime?
+
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([inviteeEmail])
+}
+
+model PresetTopic {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    String   @default("General")
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+}
+
+// Review submission — includes presentationUrl (PDF/PPT) + codeUrl (GitHub)
+// per the official submission guidelines.
+model ReviewSubmission {
+  id              String   @id @default(cuid())
+  teamId          String
+  reviewNumber    Int      // 0, 1, or 2
+  // R0 fields
+  projectTitle    String?
+  projectDescription String?
+  proposedTopic   Boolean  @default(false)
+  // R1 + R2 fields — per guidelines: presentation file + GitHub link + report
+  presentationUrl String? // PDF or PPT file link (Google Drive / direct URL)
+  reportUrl       String? // Written report URL
+  codeUrl         String? // GitHub repository URL (must be public)
+  demoUrl         String? // Optional live demo URL
+  rubricType      String?  // "A" (GUI) | "B" (Web)
+  // Faculty review
+  status          String   @default("pending")
+  facultyFeedback String?
+  marksAwarded    Int?
+  submittedAt     DateTime @default(now())
+  facultyReviewedAt DateTime?
+  reviewedBy      String?
+
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, reviewNumber])
+  @@index([teamId])
+  @@index([status])
+}
+
+model LiveSession {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  sessionDate DateTime
+  dayOfWeek   String   // "Sunday" | "Monday"
+  startTime   String
+  endTime     String
+  meetingUrl  String
+  meetingType String   @default("google_meet")
+  createdAt   DateTime @default(now())
+
+  @@index([sessionDate])
 }
