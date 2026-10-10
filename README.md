@@ -1,101 +1,102 @@
-# Attendly — Student Attendance System
+# Student Attendance System — Java Web Application
 
-A web-based Student Attendance System built with Next.js 16, TypeScript, Prisma, and Tailwind CSS.
-
-## Features
-
-- **Dual authentication**: Admin + Student login with BCrypt password hashing
-- **Student Management**: CRUD with search (roll number, name, branch, section, semester)
-- **Subject Management**: CRUD (code, name, branch, semester)
-- **Manual Attendance Marking**: Per-student Present/Absent toggle, unique per student+subject+date
-- **QR Attendance**: Admin generates expiring QR session → student scans + verifies face → attendance marked
-- **One-Device-per-Student**: Device binding enforced (admin-controlled register/unbind)
-- **Reports**: Student-wise + Subject-wise with 75% threshold highlighting
-- **Low Attendance Alerts**: Students below 75% with subject-level breakdowns
-- **Study Resources**: Free study materials per subject (CRUD)
-- **Security**: Audit logs, failed login tracking, rate limiting, password strength validation
+A Java web-based Student Attendance System built with Jakarta Servlet 6.0, JDBC, JSP, and MySQL.
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript 5
-- **Styling**: Tailwind CSS 4 + shadcn/ui
-- **Database**: Prisma ORM (SQLite dev / MySQL prod)
-- **Auth**: BCrypt + in-memory session store with 8h sliding expiry
-- **Charts**: Recharts
-- **QR**: qrcode + html5-qrcode
+- **Language**: Java 17
+- **Build**: Maven (WAR packaging)
+- **Web**: Jakarta Servlet 6.0 (jakarta.servlet.*), JSP + JSTL
+- **Server**: Apache Tomcat 10.1
+- **Database**: MySQL 8 + JDBC (mysql-connector-j)
+- **Security**: BCrypt (org.mindrot:jbcrypt), Gson for JSON
+- **No Spring, Hibernate, or ORM** — plain JDBC only
 
-## Getting Started
+## Features
+
+- Admin + Student login with BCrypt password hashing
+- Student CRUD with search (roll number, name, branch, section, semester)
+- Subject CRUD
+- Manual attendance marking (Present/Absent per student, subject, date) with JDBC transaction
+- QR attendance: admin generates expiring QR session, student scans + verifies face
+- One-device-per-student binding (admin-controlled)
+- Reports: by student, by subject, low-attendance list (<75% threshold)
+- Dashboard statistics
+- Study resources per subject (CRUD)
+- Security: audit logs, failed-login tracking, rate limiting, input validation
+
+## Architecture
+
+```
+Browser → Servlet → Service → DAO (interface + Impl) → JDBC → MySQL
+```
+
+### Package Structure (com.sas)
+- `model/` — POJOs with encapsulation (abstract User → Admin, Student inheritance)
+- `interfaces/` — GenericDAO<T,ID> + DAO + Service contracts
+- `dao/` — JDBC implementations (PreparedStatement, try-with-resources)
+- `service/` — Business logic (JDBC transactions in AttendanceServiceImpl)
+- `servlet/` — 12 Jakarta Servlet 6.0 controllers
+- `filter/` — AuthFilter (login required) + RoleFilter (ADMIN/STUDENT only)
+- `exception/` — 6 custom exceptions + central ErrorHandler
+- `util/` — DBConnection, PasswordUtil, InputValidator, JsonUtil, SessionUtil
+- `task/` — AuditLogger (ExecutorService), LoginAttemptTracker (synchronized), QRSessionCleaner (ScheduledExecutorService)
+
+## Java Concepts Demonstrated
+
+| Concept | Implementation | File |
+|---|---|---|
+| Encapsulation | Private fields + getters/setters in all models | `model/*.java` |
+| Abstraction + Inheritance | Abstract `User` class, `Admin` + `Student` extend it | `model/User.java`, `model/Admin.java`, `model/Student.java` |
+| Polymorphism | `AuthenticationService` returns `User` ref; login calls `user.getDashboardPath()` | `service/AuthenticationServiceImpl.java`, `servlet/LoginServlet.java` |
+| Interfaces | `GenericDAO<T,ID>` extended by all DAOs | `interfaces/GenericDAO.java` |
+| Collections + Generics | `List<Student>`, `ApiResponse<T>`, `Map<String,Integer>` in reports | `service/ReportServiceImpl.java`, `model/ApiResponse.java` |
+| Multithreading | `AuditLogger` (ExecutorService), `QRSessionCleaner` (ScheduledExecutorService) | `task/AuditLogger.java`, `task/QRSessionCleanerTask.java` |
+| Synchronization | `LoginAttemptTracker` (ConcurrentHashMap + synchronized), QR scan prevention | `task/LoginAttemptTracker.java`, `service/QRSessionServiceImpl.java` |
+| JDBC | PreparedStatement, try-with-resources, transaction in AttendanceService | `dao/*.java`, `service/AttendanceServiceImpl.java` |
+| Servlets | 12 servlets, AuthFilter, RoleFilter, web.xml | `servlet/*.java`, `filter/*.java` |
+| Custom Exceptions | 6 domain exceptions, central error handler | `exception/*.java` |
+
+## Setup
 
 ### Prerequisites
+- Java 17+
+- Maven
+- MySQL 8
+- Apache Tomcat 10.1
 
-- Node.js 18+
-- Bun (package manager)
-
-### Installation
-
+### Database
 ```bash
-# Install dependencies
-bun install
+mysql -u root -p < java/src/main/resources/database/schema.sql
+mysql -u root -p sas < java/src/main/resources/database/seed.sql
+```
 
-# Set up database
-cp .env.example .env
-bun run db:push
+### Configuration
+```bash
+cp java/src/main/resources/db.properties.example java/src/main/resources/db.properties
+# Edit db.properties with your MySQL credentials
+```
 
-# Seed demo data (admin + students + subjects + attendance history)
-bun run scripts/seed.ts
-
-# Start dev server
-bun run dev
+### Build & Deploy
+```bash
+cd java
+mvn clean package
+# Copy WAR to Tomcat:
+cp target/student-attendance-system.war $CATALINA_HOME/webapps/
+# Start Tomcat, visit:
+# http://localhost:8080/student-attendance-system/
 ```
 
 ### Demo Credentials
-
 - **Admin**: `admin` / `admin123`
 - **Student**: `CSE21001` / `student123`
 
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── page.tsx              # Single-page orchestrator (login → admin/student)
-│   ├── layout.tsx
-│   ├── globals.css           # Custom emerald/teal theme
-│   └── api/                   # 25+ API routes
-│       ├── auth/              # admin-login, student-login, logout, me
-│       ├── students/          # CRUD + device management
-│       ├── subjects/          # CRUD
-│       ├── attendance/        # mark + daily view
-│       ├── qr-attendance/     # generate, active, verify-face
-│       ├── resources/          # CRUD
-│       ├── reports/           # student, subject, low-attendance
-│       ├── dashboard/         # stats
-│       └── security/          # overview
-├── components/
-│   ├── ui/                   # shadcn/ui components
-│   └── sas/                   # App components
-│       ├── login-screen.tsx
-│       ├── admin-app.tsx
-│       ├── student-app.tsx
-│       ├── views/             # Admin views (10)
-│       └── student/           # Student views (5)
-├── lib/
-│   ├── auth.ts               # BCrypt + session management
-│   ├── db.ts                 # Prisma client
-│   ├── security.ts           # Rate limiting, sanitization, audit logging
-│   └── client/
-│       └── api.ts            # Fetch wrapper
-├── store/
-│   └── app-store.ts          # Zustand store
-└── proxy.ts                  # Security headers middleware
-prisma/
-└── schema.prisma             # 10 models
-scripts/
-├── seed.ts                   # Demo data seeding
-└── add-demo-students.ts      # Idempotent student seeding
+## Testing
+```bash
+cd java
+mvn test
+# ConcurrencyTest proves LoginAttemptTracker thread safety (50 threads)
 ```
 
 ## License
-
-This project is for educational purposes.
+Educational project for Java Programming course.
