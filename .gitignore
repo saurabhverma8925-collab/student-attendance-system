@@ -26,7 +26,15 @@ java/src/main/resources/db.properties
 *.class
 *.war
 
-# Misc
+# Internal/sensitive
+.zscripts/
+db/
+download/
+upload/
+skills/
+tests/
+examples/
+tool-results/
 .DS_Store
 *.pem
 *.log
