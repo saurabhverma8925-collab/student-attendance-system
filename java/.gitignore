@@ -1,0 +1,24 @@
+# Build output
+target/
+build/
+*.class
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Secrets / local config
+.env
+.env.*
+db.properties
+*.local
+
+# Maven / Gradle wrappers are committed; ignore their logs
+*.log
+hs_err_pid*
+
+# Dependency dirs (if any are checked out locally)
+/.m2/

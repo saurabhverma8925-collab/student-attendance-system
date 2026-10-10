@@ -1,0 +1,10 @@
+# =============================================================================
+# Sample DB configuration for SAS. Copy to db.properties and edit.
+#   cp src/main/resources/db.properties.example src/main/resources/db.properties
+# Environment variables (DB_URL, DB_USER, DB_PASSWORD) take priority over these
+# values when set - useful for prod / CI.
+# =============================================================================
+
+db.url      = jdbc:mysql://localhost:3306/sas?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+db.user     = root
+db.password = changeme
