@@ -1,2 +1,21 @@
-skills/
+# Dependencies
 node_modules/
+
+# Build artifacts
+.next/
+java/target/
+*.class
+*.war
+
+# Secrets (never commit)
+.env
+java/src/main/resources/db.properties
+
+# Internal tools
+skills/
+.zscripts/
+
+# OS files
+.DS_Store
+*.pem
+*.log
